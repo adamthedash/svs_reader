@@ -4,7 +4,7 @@ use anyhow::{ensure, Result};
 
 use crate::jpeg2000::decode;
 use crate::tiff::TIFFReader;
-use crate::utils::read_le_u32;
+use crate::utils::{read_le_u16, read_le_u32};
 
 mod utils;
 mod base;
@@ -81,6 +81,9 @@ impl<R: Read + Seek> SVSReader<R> {
                 })
             } else {
                 /* Tiled layer */
+                // Check compression
+                let compression_type = read_le_u16(&tiffreader.get_tag_value(i, 259)?);
+                ensure!(compression_type == 33005, "Only jpeg2000 compression supported, got value: {}", compression_type);
 
                 let tile_offsets = tiffreader.get_tag_value(i, 324)?
                     .chunks(4)
@@ -174,7 +177,7 @@ mod tests {
         let mut buf = vec![0_u8; 240 * 240 * 3];
 
 
-        let layer = 0;
+        let layer = 3;
         let tiles = (0..svs.headers.layers[layer].tile_offsets.len())
             .map(|i| svs.read_tile_compressed(layer, i).unwrap())
             .par_bridge()
