@@ -6,13 +6,12 @@ use crate::jpeg2000::decode;
 use crate::tiff::TIFFReader;
 use crate::utils::{read_le_u16, read_le_u32};
 
-mod utils;
 mod base;
-mod tiff_tags;
+pub mod jpeg2000;
 mod svs_tags;
 mod tiff;
-pub mod jpeg2000;
-
+mod tiff_tags;
+mod utils;
 
 #[derive(Debug)]
 pub struct LayerInfo {
@@ -55,16 +54,17 @@ impl<R: Read + Seek> SVSReader<R> {
         let mut layers: Vec<LayerInfo> = vec![];
         let mut thumbnail: Option<LayerInfo> = None;
 
-
         for i in 0..tiffreader.headers.directories.len() {
             if i == 1 {
                 /* Thumbnail */
 
-                let tile_offsets = tiffreader.get_tag_value(i, 273)?
+                let tile_offsets = tiffreader
+                    .get_tag_value(i, 273)?
                     .chunks(4)
                     .map(read_le_u32)
                     .collect::<Vec<_>>();
-                let tile_bytes = tiffreader.get_tag_value(i, 279)?
+                let tile_bytes = tiffreader
+                    .get_tag_value(i, 279)?
                     .chunks(4)
                     .map(read_le_u32)
                     .collect::<Vec<_>>();
@@ -83,13 +83,19 @@ impl<R: Read + Seek> SVSReader<R> {
                 /* Tiled layer */
                 // Check compression
                 let compression_type = read_le_u16(&tiffreader.get_tag_value(i, 259)?);
-                ensure!(compression_type == 33005, "Only jpeg2000 compression supported, got value: {}", compression_type);
+                ensure!(
+                    compression_type == 33005,
+                    "Only jpeg2000 compression supported, got value: {}",
+                    compression_type
+                );
 
-                let tile_offsets = tiffreader.get_tag_value(i, 324)?
+                let tile_offsets = tiffreader
+                    .get_tag_value(i, 324)?
                     .chunks(4)
                     .map(read_le_u32)
                     .collect::<Vec<_>>();
-                let tile_bytes = tiffreader.get_tag_value(i, 325)?
+                let tile_bytes = tiffreader
+                    .get_tag_value(i, 325)?
                     .chunks(4)
                     .map(read_le_u32)
                     .collect::<Vec<_>>();
@@ -132,14 +138,21 @@ impl<R: Read + Seek> SVSReader<R> {
 
         // Get layer
         let layer = &self.headers.layers[layer];
-        ensure!(tile_id < layer.tile_bytes.len(), "Invalid tile id given. {:?} {}", layer, layer.tile_bytes.len());
+        ensure!(
+            tile_id < layer.tile_bytes.len(),
+            "Invalid tile id given. {:?} {}",
+            layer,
+            layer.tile_bytes.len()
+        );
 
         let offset = layer.tile_offsets[tile_id];
         let bytes = layer.tile_bytes[tile_id];
 
         // Seek & read
         let mut buf = vec![0; bytes as usize];
-        self.tiffreader.reader.seek(SeekFrom::Start(offset as u64))?;
+        self.tiffreader
+            .reader
+            .seek(SeekFrom::Start(offset as u64))?;
         self.tiffreader.reader.read_exact(&mut buf)?;
 
         Ok(buf)
@@ -152,18 +165,17 @@ impl<R: Read + Seek> SVSReader<R> {
     pub fn layer_scale(&self, layer: usize) -> Result<f32> {
         ensure!(layer < self.headers.layers.len(), "Invalid layer given.");
 
-        Ok(self.headers.layers[layer].image_width as f32 / self.headers.layers[0].image_width as f32)
+        Ok(self.headers.layers[layer].image_width as f32
+            / self.headers.layers[0].image_width as f32)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::fs::File;
-    use buffered_iter::buffered::IntoBufferedIterator;
-    use buffered_iter::threaded::IntoThreadedIterator;
 
-    use rayon::iter::ParallelIterator;
-    use rayon::prelude::ParallelBridge;
+    use iterators_extended::buffered::IntoBufferedIterator;
+    use iterators_extended::threaded::IntoThreadedIterator;
 
     use crate::jpeg2000::decode;
     use crate::SVSReader;
@@ -173,7 +185,6 @@ mod tests {
         let source_file = r"E:\datasets\tcga\images\hcmi_cmdc\0a5410d7-0f5c-4dda-986e-d857d176498f\HCM-CSHL-0366-C50-01A-01-S1-HE.30E0E448-BC32-4FCA-99F8-CF5E8C283352.svs";
         let file = File::open(source_file).expect("Failed to open file");
         let mut svs = SVSReader::open(file).expect("Failed to read svs.");
-
 
         let layer = 0;
         let tiles = (0..svs.headers.layers[layer].tile_offsets.len())

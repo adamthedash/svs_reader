@@ -9,4 +9,4 @@ edition = "2021"
 anyhow = "1.0.82"
 jpeg2k = "0.7.0"
 rayon = "1.10.0"
-buffered_iter = { path = "../buffered_iter" }
+iterators_extended = "0.1.0"
