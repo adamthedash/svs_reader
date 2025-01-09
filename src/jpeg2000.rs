@@ -2,13 +2,13 @@ use anyhow::Result;
 use jpeg2k::{DecodeParameters, Image};
 
 pub fn decode_into_buffer(bytes: &[u8], buf: &mut [u8]) -> Result<()> {
-    let decode_params = DecodeParameters::default()
-        // .decode_area(Some(DecodeArea::new(0, 0, 1, 1)))
-        ;
+    let decode_params = DecodeParameters::default();
 
     let jp2_image = Image::from_bytes_with(bytes, decode_params)?;
 
-    assert!(buf.len() >= (jp2_image.height() * jp2_image.width() * jp2_image.num_components()) as usize);
+    assert!(
+        buf.len() >= (jp2_image.height() * jp2_image.width() * jp2_image.num_components()) as usize
+    );
 
     let components = jp2_image.components();
     for i in 0..components.len() {
@@ -28,8 +28,8 @@ pub fn decode(bytes: &[u8]) -> Result<Vec<u8>> {
 
     let jp2_image = Image::from_bytes_with(bytes, decode_params)?;
 
-
-    let mut buf = vec![0; (jp2_image.height() * jp2_image.width() * jp2_image.num_components()) as usize];
+    let mut buf =
+        vec![0; (jp2_image.height() * jp2_image.width() * jp2_image.num_components()) as usize];
 
     let components = jp2_image.components();
     for i in 0..components.len() {
@@ -54,7 +54,6 @@ mod tests {
         let bytes = fs::read("1.j2k").unwrap();
 
         let mut big_buf = vec![0_u8; 240 * 240 * 3];
-        // let mut big_buf = [0; 240 * 240 * 3];
         for _ in 0..1000 {
             decode_into_buffer(&bytes, &mut big_buf).unwrap();
         }
@@ -70,3 +69,4 @@ mod tests {
         }
     }
 }
+

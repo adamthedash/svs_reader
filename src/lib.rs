@@ -159,6 +159,8 @@ impl<R: Read + Seek> SVSReader<R> {
 #[cfg(test)]
 mod tests {
     use std::fs::File;
+    use buffered_iter::buffered::IntoBufferedIterator;
+    use buffered_iter::threaded::IntoThreadedIterator;
 
     use rayon::iter::ParallelIterator;
     use rayon::prelude::ParallelBridge;
@@ -171,17 +173,15 @@ mod tests {
         let source_file = r"E:\datasets\tcga\images\hcmi_cmdc\0a5410d7-0f5c-4dda-986e-d857d176498f\HCM-CSHL-0366-C50-01A-01-S1-HE.30E0E448-BC32-4FCA-99F8-CF5E8C283352.svs";
         let file = File::open(source_file).expect("Failed to open file");
         let mut svs = SVSReader::open(file).expect("Failed to read svs.");
-        // println!("{:?}", svs);
 
 
-        let mut buf = vec![0_u8; 240 * 240 * 3];
-
-
-        let layer = 3;
+        let layer = 0;
         let tiles = (0..svs.headers.layers[layer].tile_offsets.len())
             .map(|i| svs.read_tile_compressed(layer, i).unwrap())
-            .par_bridge()
-            .map(|b| decode(&b).unwrap())
+            .par_map(|b| decode(&b).unwrap())
+            .buffered(10)
+            // .par_bridge()
+            // .map(|b| decode(&b).unwrap())
             .count();
         println!("{}", tiles);
     }
